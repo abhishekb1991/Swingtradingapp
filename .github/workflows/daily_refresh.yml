@@ -1,4 +1,4 @@
-   name: Daily SwingNSE Refresh
+name: Daily SwingNSE Refresh
 
 on:
   workflow_dispatch:
