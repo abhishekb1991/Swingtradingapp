@@ -49,7 +49,9 @@ def init_db():
             macro_score REAL DEFAULT 0, macro_risk TEXT DEFAULT 'UNKNOWN', macro_regime TEXT,
             macro_reason TEXT, sector_macro_adj REAL DEFAULT 0, macro_adjusted_score REAL, macro_adjusted_action TEXT,
             event_summary TEXT, news_event_count INTEGER DEFAULT 0, technical_score REAL, combined_signal_score REAL,
-            final_recommendation TEXT, final_signal_reason TEXT
+            final_recommendation TEXT, final_signal_reason TEXT,
+            ai_success_probability REAL, ai_confidence TEXT, ai_adjusted_score REAL,
+            ai_recommendation TEXT, ai_reason TEXT
         )''')
         # Migrate older v4 databases in-place with the new v5 news columns.
         for col, typ in {
@@ -62,7 +64,9 @@ def init_db():
             'macro_reason':'TEXT', 'sector_macro_adj':'REAL DEFAULT 0', 'macro_adjusted_score':'REAL', 'macro_adjusted_action':'TEXT',
             'event_summary':'TEXT', 'news_event_count':'INTEGER DEFAULT 0', 'technical_score':'REAL',
             'combined_signal_score':'REAL', 'final_recommendation':'TEXT', 'final_signal_reason':'TEXT',
-            'top_news_type':'TEXT', 'top_news_confidence':'TEXT', 'top_news_materiality':'REAL DEFAULT 0', 'news_audit_reason':'TEXT'
+            'top_news_type':'TEXT', 'top_news_confidence':'TEXT', 'top_news_materiality':'REAL DEFAULT 0', 'news_audit_reason':'TEXT',
+            'ai_success_probability':'REAL', 'ai_confidence':'TEXT', 'ai_adjusted_score':'REAL',
+            'ai_recommendation':'TEXT', 'ai_reason':'TEXT'
         }.items():
             _ensure_column(con, 'recommendations', col, typ)
         con.execute('''

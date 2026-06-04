@@ -9,9 +9,14 @@ from swingnse.storage import (
     init_db, load_recommendations, load_positions, add_position, close_position,
     watch, unwatch, load_watchlist, load_prices, load_news_events, load_macro_snapshot
 )
+from swingnse.learning_engine import (
+    ensure_learning_tables, load_learning_history, learning_summary, update_outcomes,
+    train_learning_model, get_model_runs
+)
 
 st.set_page_config(page_title='SwingNSE Desktop', page_icon='📈', layout='wide')
 init_db()
+ensure_learning_tables()
 
 
 def safe_numeric_col(df, col, default=0):
@@ -32,8 +37,8 @@ st.markdown('''
 </style>
 ''', unsafe_allow_html=True)
 
-st.title('📈 SwingNSE Desktop v10.1 — NSEFIN Daily Swing Scanner')
-st.caption('Uses nsefin daily equity Bhavcopy pull + get_quote LTP syntax, local SQLite storage, deterministic technical scoring, structured news taxonomy, macro overlay, sector breadth and risk analytics. Educational/research use only.')
+st.title('📈 SwingNSE Desktop v11 — NSEFIN Daily Swing Scanner')
+st.caption('Uses nsefin daily equity Bhavcopy pull + get_quote LTP syntax, local SQLite storage, deterministic technical scoring, structured news taxonomy, macro overlay, sector breadth, risk analytics, recommendation history and controlled AI learning. Educational/research use only.')
 
 with st.sidebar:
     st.header('Daily Refresh')
@@ -65,7 +70,7 @@ with st.sidebar:
     st.caption('DB: data/swingnse.db')
     st.caption('CSV: exports/recommendations.csv')
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(['Scanner', 'Positions', 'Watchlist', 'News & Results', 'Macro Regime', 'Sector Analytics', 'History', 'Setup'])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(['Scanner', 'Positions', 'Watchlist', 'News & Results', 'Macro Regime', 'Sector Analytics', 'History', 'Learning', 'Setup'])
 
 with tab1:
     recs = load_recommendations()
@@ -90,7 +95,7 @@ with tab1:
         if action_filter != 'ALL':
             view = view[view['action'] == action_filter]
         view = view[view['score'] >= min_score].head(int(topn))
-        display_cols = [c for c in ['symbol','date','close','sector','setup_grade','technical_score','analytics_score','trend_score','momentum_score','volume_score','liquidity_score','volatility_score','risk_quality_score','sector_score','news_score','event_caution_score','macro_score','sector_macro_adj','combined_signal_score','suggested_risk_pct','action','final_recommendation','news_adjusted_action','macro_adjusted_action','event_risk','top_news_type','top_news_confidence','top_news_materiality','macro_risk','macro_regime','news_summary','upcoming_event','event_summary','latest_event','avg_traded_value_20_cr','atr_pct','volatility_risk','ret_20d','ret_60d','rsi14','macd_hist','adx14','sma20','sma50','sma200','atr14','vol_ratio','stop_loss','target','rr','analytics_reason','news_audit_reason','final_signal_reason','reason'] if c in view.columns]
+        display_cols = [c for c in ['symbol','date','close','sector','setup_grade','technical_score','analytics_score','trend_score','momentum_score','volume_score','liquidity_score','volatility_score','risk_quality_score','sector_score','news_score','event_caution_score','macro_score','sector_macro_adj','combined_signal_score','ai_success_probability','ai_confidence','ai_adjusted_score','ai_recommendation','suggested_risk_pct','action','final_recommendation','news_adjusted_action','macro_adjusted_action','event_risk','top_news_type','top_news_confidence','top_news_materiality','macro_risk','macro_regime','news_summary','upcoming_event','event_summary','latest_event','avg_traded_value_20_cr','atr_pct','volatility_risk','ret_20d','ret_60d','rsi14','macd_hist','adx14','sma20','sma50','sma200','atr14','vol_ratio','stop_loss','target','rr','analytics_reason','news_audit_reason','ai_reason','final_signal_reason','reason'] if c in view.columns]
         st.dataframe(view[display_cols], use_container_width=True, hide_index=True)
         st.download_button('Download recommendations CSV', view.to_csv(index=False), 'recommendations_filtered.csv', 'text/csv')
         st.subheader('Quick actions')
@@ -344,6 +349,89 @@ with tab7:
         st.dataframe(sdata.tail(120), use_container_width=True, hide_index=True)
 
 with tab8:
+    st.subheader('Learning Engine')
+    st.caption('Controlled feedback loop: store recommendation snapshots, evaluate 5/10/20D outcomes later, review mistakes, and train a probability model only after enough completed history exists.')
+
+    summary = learning_summary()
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric('Snapshots stored', summary.get('total', 0))
+    c2.metric('Completed outcomes', summary.get('completed', 0))
+    c3.metric('Pending outcomes', summary.get('pending', 0))
+    sr = summary.get('success_rate')
+    c4.metric('Outcome success rate', '—' if sr is None else f'{sr:.1f}%')
+    c5.metric('AI model', 'Available' if summary.get('model_exists') else 'Not trained')
+
+    b1, b2, b3 = st.columns(3)
+    if b1.button('🔁 Update outcomes from stored OHLCV'):
+        n = update_outcomes()
+        st.success(f'Updated {n} recommendation outcomes. Rows need 20 future trading days before completion.')
+    min_rows = b2.number_input('Minimum completed rows to train', min_value=20, max_value=1000, value=80, step=20)
+    if b3.button('🧠 Train / refresh AI probability model'):
+        result = train_learning_model(min_rows=int(min_rows))
+        if result.get('trained'):
+            st.success(f"Model trained on {result.get('rows_used')} completed outcomes. Validation accuracy: {result.get('validation_accuracy'):.2f}; AUC: {result.get('validation_auc') if result.get('validation_auc') is not None else 'NA'}")
+        else:
+            st.warning(result.get('message', 'Model not trained.'))
+
+    hist = load_learning_history()
+    if hist.empty:
+        st.info('No recommendation history yet. Run a scanner refresh; v11 stores one snapshot per symbol/date automatically.')
+    else:
+        st.markdown('**Learning history / outcome table**')
+        hc1, hc2, hc3, hc4 = st.columns(4)
+        sym_q = hc1.text_input('Filter symbol', key='learning_symbol_filter')
+        outcome_filter = hc2.selectbox('Outcome', ['ALL','SUCCESS','FAILURE','PENDING'])
+        rec_filter = hc3.selectbox('Recommendation contains', ['ALL','BUY','WATCH','AVOID','SELL'])
+        top_hist = hc4.number_input('Rows', min_value=50, max_value=5000, value=300, step=50)
+        hv = hist.copy()
+        if sym_q:
+            hv = hv[hv['symbol'].astype(str).str.contains(sym_q.upper(), na=False)]
+        if outcome_filter == 'SUCCESS':
+            hv = hv[hv['outcome_label'] == 1]
+        elif outcome_filter == 'FAILURE':
+            hv = hv[hv['outcome_label'] == 0]
+        elif outcome_filter == 'PENDING':
+            hv = hv[hv['outcome_label'].isna()]
+        if rec_filter != 'ALL':
+            hv = hv[hv['final_recommendation'].astype(str).str.contains(rec_filter, case=False, na=False)]
+        hist_cols = [c for c in ['snapshot_date','symbol','close','final_recommendation','combined_signal_score','ai_success_probability','ai_recommendation','outcome_5d_return','outcome_10d_return','outcome_20d_return','max_favourable_20d','max_adverse_20d','target_hit_20d','stop_hit_20d','outcome_label','mistake_type','technical_score','analytics_score','news_score','event_caution_score','macro_score','sector_score','reason','evaluated_at'] if c in hv.columns]
+        st.dataframe(hv[hist_cols].head(int(top_hist)), use_container_width=True, hide_index=True)
+        st.download_button('Download recommendation_history.csv', hv.to_csv(index=False), 'recommendation_history.csv', 'text/csv')
+
+        completed = hist.dropna(subset=['outcome_label']).copy()
+        if not completed.empty:
+            st.markdown('**Backtest-style outcome summary from stored recommendations**')
+            g1, g2, g3 = st.columns(3)
+            g1.metric('Avg 20D return', f"{pd.to_numeric(completed['outcome_20d_return'], errors='coerce').mean():.2f}%")
+            g2.metric('Target hit rate', f"{pd.to_numeric(completed['target_hit_20d'], errors='coerce').fillna(0).mean()*100:.1f}%")
+            g3.metric('Stop hit rate', f"{pd.to_numeric(completed['stop_hit_20d'], errors='coerce').fillna(0).mean()*100:.1f}%")
+
+            by_rec = completed.groupby('final_recommendation', dropna=False).agg(
+                trades=('symbol','count'),
+                success_rate=('outcome_label','mean'),
+                avg_20d_return=('outcome_20d_return','mean'),
+                stop_hit_rate=('stop_hit_20d','mean'),
+                target_hit_rate=('target_hit_20d','mean')
+            ).reset_index()
+            by_rec['success_rate'] = (by_rec['success_rate'] * 100).round(1)
+            by_rec['stop_hit_rate'] = (by_rec['stop_hit_rate'] * 100).round(1)
+            by_rec['target_hit_rate'] = (by_rec['target_hit_rate'] * 100).round(1)
+            by_rec['avg_20d_return'] = by_rec['avg_20d_return'].round(2)
+            st.dataframe(by_rec.sort_values('success_rate', ascending=False), use_container_width=True, hide_index=True)
+
+            mistakes = completed[completed['outcome_label'] == 0].copy()
+            if not mistakes.empty:
+                st.markdown('**Mistake review**')
+                mcols = [c for c in ['snapshot_date','symbol','final_recommendation','outcome_20d_return','max_adverse_20d','stop_hit_20d','target_hit_20d','mistake_type','combined_signal_score','technical_score','analytics_score','news_score','event_caution_score','macro_score','sector_score','reason'] if c in mistakes.columns]
+                st.dataframe(mistakes[mcols].sort_values('outcome_20d_return').head(100), use_container_width=True, hide_index=True)
+
+        runs = get_model_runs()
+        if not runs.empty:
+            st.markdown('**AI model training runs**')
+            st.dataframe(runs.head(20), use_container_width=True, hide_index=True)
+
+
+with tab9:
     st.subheader('Setup')
     st.markdown('''
 **Recommended desktop flow**
@@ -382,4 +470,12 @@ This app deliberately uses your confirmed syntax: `nsefin.NSEClient().get_equity
 - Final recommendation now includes technical + structured news + event caution + macro + sector + liquidity/volatility analytics.
 - Adds `macro_score`, `macro_risk`, `macro_regime`, `combined_signal_score`, `final_recommendation`, and `final_signal_reason`.
 - This layer should reduce aggressiveness during high volatility/risk-off markets instead of creating blind buy calls.
+
+**v11 Learning layer**
+
+- Every refresh stores the daily recommendation snapshot in `recommendation_history`.
+- Outcome tracker evaluates 5D/10D/20D returns after enough future candles exist.
+- Mistake review flags false positives, missed winners, stop-loss failures and weak long calls.
+- AI model training is manual/controlled. It trains only on completed outcomes and then adds `ai_success_probability`, `ai_confidence`, `ai_adjusted_score`, and `ai_recommendation`.
+- The AI overlay is deliberately not an auto-trader; it is a probability/risk input layered on top of the existing explainable score.
     ''')

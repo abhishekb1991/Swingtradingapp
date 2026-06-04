@@ -10,6 +10,7 @@ from .indicators import add_indicators, score_latest
 from .news_engine import fetch_events_for_symbols, apply_news_to_recommendations
 from .scoring_engine import apply_final_recommendation
 from .analytics_engine import apply_advanced_analytics
+from .learning_engine import apply_ai_probability, record_recommendations, update_outcomes
 from .macro_engine import compute_macro_snapshot, apply_macro_to_recommendations
 from .storage import upsert_prices, load_prices, replace_recommendations, init_db, replace_news_events, replace_macro_snapshot, load_macro_snapshot
 
@@ -207,7 +208,23 @@ def generate_recommendations(symbols: Optional[Iterable[str]] = None, min_histor
         recs = apply_final_recommendation(recs)
         recs = recs.sort_values(['combined_signal_score', 'macro_adjusted_score', 'final_score', 'score', 'volume'], ascending=[False, False, False, False, False])
 
+    # Learning overlay: evaluate old recommendation outcomes, apply trained AI probability if available,
+    # then persist the current recommendation snapshot for future learning.
+    try:
+        update_outcomes()
+        recs = apply_ai_probability(recs)
+    except Exception as e:
+        recs['ai_success_probability'] = None
+        recs['ai_confidence'] = 'ERROR'
+        recs['ai_adjusted_score'] = recs.get('combined_signal_score', recs.get('score', 0))
+        recs['ai_recommendation'] = recs.get('final_recommendation', recs.get('action', ''))
+        recs['ai_reason'] = f'Learning overlay skipped: {e}'
+
     replace_recommendations(recs)
+    try:
+        record_recommendations(recs)
+    except Exception:
+        pass
     Path('exports').mkdir(exist_ok=True)
     recs.to_csv('exports/recommendations.csv', index=False)
     # Also write root-level CSV because the user's working Streamlit sample reads recommendations.csv.
@@ -226,7 +243,9 @@ def generate_recommendations(symbols: Optional[Iterable[str]] = None, min_histor
         'risk_quality_score':'Risk_Quality_Score', 'analytics_score':'Analytics_Score', 'setup_grade':'Setup_Grade',
         'suggested_risk_pct':'Suggested_Risk_Pct', 'analytics_reason':'Analytics_Reason',
         'top_news_type':'Top_News_Type', 'top_news_confidence':'Top_News_Confidence',
-        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason'
+        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason',
+        'ai_success_probability':'AI_Success_Probability', 'ai_confidence':'AI_Confidence',
+        'ai_adjusted_score':'AI_Adjusted_Score', 'ai_recommendation':'AI_Recommendation', 'ai_reason':'AI_Reason'
     }).to_csv('recommendations.csv', index=False)
     return recs
 
@@ -243,6 +262,11 @@ def refresh_news_only(limit_symbols: int = 100) -> pd.DataFrame:
     enriched = apply_news_to_recommendations(recs, events)
     enriched = apply_final_recommendation(enriched)
     enriched = enriched.sort_values(['combined_signal_score', 'final_score', 'score', 'volume'], ascending=[False, False, False, False])
+    try:
+        update_outcomes()
+        enriched = apply_ai_probability(enriched)
+    except Exception:
+        pass
     replace_recommendations(enriched)
     Path('exports').mkdir(exist_ok=True)
     enriched.to_csv('exports/recommendations.csv', index=False)
@@ -261,7 +285,9 @@ def refresh_news_only(limit_symbols: int = 100) -> pd.DataFrame:
         'risk_quality_score':'Risk_Quality_Score', 'analytics_score':'Analytics_Score', 'setup_grade':'Setup_Grade',
         'suggested_risk_pct':'Suggested_Risk_Pct', 'analytics_reason':'Analytics_Reason',
         'top_news_type':'Top_News_Type', 'top_news_confidence':'Top_News_Confidence',
-        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason'
+        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason',
+        'ai_success_probability':'AI_Success_Probability', 'ai_confidence':'AI_Confidence',
+        'ai_adjusted_score':'AI_Adjusted_Score', 'ai_recommendation':'AI_Recommendation', 'ai_reason':'AI_Reason'
     }).to_csv('recommendations.csv', index=False)
     return enriched
 
@@ -277,6 +303,11 @@ def refresh_macro_only() -> pd.DataFrame:
     enriched = apply_macro_to_recommendations(recs, macro)
     enriched = apply_final_recommendation(enriched)
     enriched = enriched.sort_values(['combined_signal_score', 'macro_adjusted_score', 'final_score', 'score', 'volume'], ascending=[False, False, False, False, False])
+    try:
+        update_outcomes()
+        enriched = apply_ai_probability(enriched)
+    except Exception:
+        pass
     replace_recommendations(enriched)
     Path('exports').mkdir(exist_ok=True)
     enriched.to_csv('exports/recommendations.csv', index=False)
@@ -295,7 +326,9 @@ def refresh_macro_only() -> pd.DataFrame:
         'risk_quality_score':'Risk_Quality_Score', 'analytics_score':'Analytics_Score', 'setup_grade':'Setup_Grade',
         'suggested_risk_pct':'Suggested_Risk_Pct', 'analytics_reason':'Analytics_Reason',
         'top_news_type':'Top_News_Type', 'top_news_confidence':'Top_News_Confidence',
-        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason'
+        'top_news_materiality':'Top_News_Materiality', 'news_audit_reason':'News_Audit_Reason',
+        'ai_success_probability':'AI_Success_Probability', 'ai_confidence':'AI_Confidence',
+        'ai_adjusted_score':'AI_Adjusted_Score', 'ai_recommendation':'AI_Recommendation', 'ai_reason':'AI_Reason'
     }).to_csv('recommendations.csv', index=False)
     return enriched
 
