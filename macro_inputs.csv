@@ -1,0 +1,5 @@
+metric,value,note
+fii_5d_cr,0,manual FII/FPI 5-day net flow in crore; update from NSDL/exchange data if available
+rbi_policy_bias,0,dovish +1 neutral 0 hawkish -1
+inflation_bias,0,easing inflation +1 neutral 0 high/sticky inflation -1
+results_season_risk,0,normal 0; uncertain peak results season -1

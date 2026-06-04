@@ -1,0 +1,6 @@
+symbol,contains,source_contains,forced_type,forced_sentiment,forced_score,forced_event_caution,forced_risk,notes
+*,investors are sitting on a loss,,LOW_VALUE_COMMENTARY,NEUTRAL,0,0,LOW,Historical shareholder-return article; no fresh catalyst
+*,latest decline adds to one-year losses,,LOW_VALUE_COMMENTARY,NEUTRAL,0,0,LOW,Historical price-performance article; no fresh catalyst
+*,institutional investors may consider drastic measures,,LOW_VALUE_COMMENTARY,NEUTRAL,0,0,LOW,Low-value shareholder-return commentary
+*,analyst/institutional investor meet,,INVESTOR_COMMUNICATION,NEUTRAL,0,0,LOW,Investor communication only; no caution by itself
+*,con. call,,INVESTOR_COMMUNICATION,NEUTRAL,0,0,LOW,Con-call update only; no caution by itself
