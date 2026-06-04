@@ -84,7 +84,7 @@ def fetch_bhavcopies(days: int = 120, symbols: Optional[Iterable[str]] = None, m
     from .nsefin_client import get_equity_bhav_copy_for_date
     init_db()
     symbols_set = set([s.upper() for s in symbols]) if symbols else set()
-    current_date = dt.datetime.now() - dt.timedelta(days=1)
+    current_date = dt.datetime.now()
     days_collected = 0
     attempts = 0
     total_rows = 0
