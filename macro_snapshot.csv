@@ -1,9 +1,9 @@
 as_of,metric,value,macro_score,risk,note,source
-2026-11-03T20:26:31,nifty_trend,4.54,1,LOW,Nifty 20D return 4.5439919275528595; 60D return -4.807579358875735,Yahoo ^NSEI
-2026-11-03T20:26:31,india_vix,15.5,0,LOW,India VIX latest; 20D change 7.192254212374838,Yahoo ^INDIAVIX / NSE VIX proxy
-2026-11-03T20:26:31,usd_inr,94.73,0,LOW,USDINR 20D change -1.6740151108942336,Yahoo INR=X
-2026-11-03T20:26:31,crude_oil,96.7,-1,MEDIUM,Crude 20D change 8.117167160848515,Yahoo CL=F / global proxy
-2026-11-03T20:26:31,fii_5d_cr,0.0,0,LOW,manual FII/FPI 5-day net flow in crore; update from NSDL/exchange data if available,manual macro_inputs.csv
-2026-11-03T20:26:31,rbi_policy_bias,0.0,0,LOW,dovish +1 neutral 0 hawkish -1,manual macro_inputs.csv
-2026-11-03T20:26:31,inflation_bias,0.0,0,LOW,easing inflation +1 neutral 0 high/sticky inflation -1,manual macro_inputs.csv
-2026-11-03T20:26:31,results_season_risk,0.0,0,LOW,normal 0; uncertain peak results season -1,manual macro_inputs.csv
+2026-11-04T20:42:14,nifty_trend,5.56,1,LOW,Nifty 20D return 5.564433057535223; 60D return -3.3493683659076123,Yahoo ^NSEI
+2026-11-04T20:42:14,india_vix,15.72,0,LOW,India VIX latest; 20D change 6.359949601086035,Yahoo ^INDIAVIX / NSE VIX proxy
+2026-11-04T20:42:14,usd_inr,94.63,0,LOW,USDINR 20D change -1.8059510297344095,Yahoo INR=X
+2026-11-04T20:42:14,crude_oil,88.61,0,LOW,Crude 20D change 0.37381268194136563,Yahoo CL=F / global proxy
+2026-11-04T20:42:14,fii_5d_cr,0.0,0,LOW,manual FII/FPI 5-day net flow in crore; update from NSDL/exchange data if available,manual macro_inputs.csv
+2026-11-04T20:42:14,rbi_policy_bias,0.0,0,LOW,dovish +1 neutral 0 hawkish -1,manual macro_inputs.csv
+2026-11-04T20:42:14,inflation_bias,0.0,0,LOW,easing inflation +1 neutral 0 high/sticky inflation -1,manual macro_inputs.csv
+2026-11-04T20:42:14,results_season_risk,0.0,0,LOW,normal 0; uncertain peak results season -1,manual macro_inputs.csv
